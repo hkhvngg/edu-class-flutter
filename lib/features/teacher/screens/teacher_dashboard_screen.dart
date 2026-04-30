@@ -58,7 +58,6 @@ class TeacherDashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Stats Section
             Row(
               children: [
                 _buildStatCard(context, Icons.menu_book_rounded, '2', 'Lớp học'),
@@ -70,7 +69,6 @@ class TeacherDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Create New Class Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -89,7 +87,6 @@ class TeacherDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Classes List
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -112,7 +109,6 @@ class TeacherDashboardScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Card Header
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -142,7 +138,6 @@ class TeacherDashboardScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Card Content
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(

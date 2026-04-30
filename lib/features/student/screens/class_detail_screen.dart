@@ -39,7 +39,6 @@ class ClassDetailScreen extends StatelessWidget {
         ),
         body: Column(
           children: [
-            // Header Section
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -74,7 +73,6 @@ class ClassDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // TabBar Section
             const TabBar(
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey,
@@ -85,7 +83,6 @@ class ClassDetailScreen extends StatelessWidget {
                 Tab(text: 'Học viên'),
               ],
             ),
-            // TabBarView Section
             Expanded(
               child: TabBarView(
                 children: [
@@ -108,6 +105,8 @@ class ClassDetailScreen extends StatelessWidget {
               Navigator.pushReplacementNamed(context, '/my_classes');
             } else if (index == 1) {
               Navigator.pushReplacementNamed(context, '/upload_material');
+            } else if (index == 3) {
+              Navigator.pushReplacementNamed(context, '/profile');
             }
           },
           items: const [

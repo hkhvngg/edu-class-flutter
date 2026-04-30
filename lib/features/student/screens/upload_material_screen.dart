@@ -32,7 +32,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section 1: Choose Analysis Type
             _buildSection(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +69,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Section 2: Upload PDF Document
             _buildSection(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,7 +98,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                         border: Border.all(color: Colors.grey.shade300, width: 1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      // Custom dashed border simulation
                       child: Padding(
                         padding: const EdgeInsets.all(2.0),
                         child: DottedBorderWidget(
@@ -129,7 +126,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Section 3: Usage Tips
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -170,9 +166,10 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
         selectedItemColor: const Color(0xFF0F172A),
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        currentIndex: 1, // "Tải lên" is selected
+        currentIndex: 1,
         onTap: (index) {
           if (index == 0) Navigator.pushReplacementNamed(context, '/my_classes');
+          if (index == 3) Navigator.pushReplacementNamed(context, '/profile');
         },
         items: const [
           BottomNavigationBarItem(
@@ -278,7 +275,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
   }
 }
 
-// Simple widget to simulate dotted border
 class DottedBorderWidget extends StatelessWidget {
   final Widget child;
   const DottedBorderWidget({super.key, required this.child});
@@ -305,14 +301,12 @@ class DashPainter extends CustomPainter {
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
-    // Draw horizontal dashed lines
     while (startX < size.width) {
       canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
       canvas.drawLine(Offset(startX, size.height), Offset(startX + dashWidth, size.height), paint);
       startX += dashWidth + dashSpace;
     }
 
-    // Draw vertical dashed lines
     double startY = 0;
     while (startY < size.height) {
       canvas.drawLine(Offset(0, startY), Offset(0, startY + dashWidth), paint);

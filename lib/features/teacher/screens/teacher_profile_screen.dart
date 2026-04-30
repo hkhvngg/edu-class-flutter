@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+class TeacherProfileScreen extends StatelessWidget {
+  const TeacherProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,6 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Profile Info Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -42,11 +41,11 @@ class ProfileScreen extends StatelessWidget {
                         height: 80,
                         decoration: const BoxDecoration(
                           color: Colors.black,
-                          shape:BoxShape.circle,
+                          shape: BoxShape.circle,
                         ),
                         child: const Center(
                           child: Text(
-                            'N',
+                            'GV',
                             style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -62,23 +61,34 @@ class ProfileScreen extends StatelessWidget {
                                 color: Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(
-                                'Học viên',
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              child: const Text(
+                                'Giảng viên',
+                                style: TextStyle(color: Colors.grey, fontSize: 12),
                               ),
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Nguyễn Văn A',
+                              'ThS. Trần Thị B',
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
-                            Text(
-                              'student@edu.vn',
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                            const Text(
+                              'teacher@edu.vn',
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
                             ),
                           ],
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem('2', 'Lớp học'),
+                      _buildStatItem('83', 'Học viên'),
+                      _buildStatItem('14', 'Tài liệu'),
                     ],
                   ),
                 ],
@@ -86,15 +96,13 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Menu Items
             _buildMenuItem('Chỉnh sửa hồ sơ', 'Cập nhật thông tin cá nhân'),
             const SizedBox(height: 12),
-            _buildMenuItem('Đổi mật khẩu', 'Bảo mật tài khoản'),
+            _buildMenuItem('Cài đặt thông báo', 'Email, push notification'),
             const SizedBox(height: 12),
-            _buildMenuItem('Trợ giúp & Phản hồi', 'Liên hệ hỗ trợ'),
+            _buildMenuItem('Trợ giúp', 'Hướng dẫn sử dụng'),
             const SizedBox(height: 32),
 
-            // Logout Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -118,10 +126,11 @@ class ProfileScreen extends StatelessWidget {
         selectedItemColor: const Color(0xFF0F172A),
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        currentIndex: 3, // "Cá nhân" is selected
+        currentIndex: 3,
         onTap: (index) {
-          if (index == 0) Navigator.pushReplacementNamed(context, '/my_classes');
-          if (index == 1) Navigator.pushReplacementNamed(context, '/upload_material');
+          if (index == 0) {
+            Navigator.pushReplacementNamed(context, '/teacher_dashboard');
+          }
         },
         items: const [
           BottomNavigationBarItem(
@@ -143,6 +152,22 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+        ),
+      ],
     );
   }
 
