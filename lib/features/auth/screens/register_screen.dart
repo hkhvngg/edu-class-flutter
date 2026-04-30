@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../services/database_service.dart';
+import '../models/user_model.dart';
+import 'dart:async';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final DatabaseService _databaseService = DatabaseService();
   String selectedRole = 'student';
   bool agreeToTerms = false;
   bool isLoading = false;
@@ -40,33 +43,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-      );
+      ).timeout(const Duration(seconds: 20));
 
       final User? user = userCredential.user;
 
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
 
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'uid': user.uid,
-          'fullName': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'role': selectedRole,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        UserModel newUser = UserModel(
+          uid: user.uid,
+          email: user.email!,
+          fullName: _nameController.text.trim(),
+          role: selectedRole, // Sẽ lưu theo role bạn chọn trên UI
+          createdAt: DateTime.now(),
+        );
+
+        await _databaseService.saveUser(newUser);
 
         if (mounted) {
           _showSnackBar('Đăng ký tài khoản thành công!');
           Navigator.pop(context);
         }
       }
+    } on TimeoutException {
+      _showSnackBar('Quá thời gian kết nối.');
     } on FirebaseAuthException catch (e) {
-      String msg = 'Đã có lỗi xảy ra';
-      if (e.code == 'email-already-in-use') msg = 'Email này đã được sử dụng';
-      else if (e.code == 'weak-password') msg = 'Mật khẩu quá yếu';
-      _showSnackBar(msg);
+      _showSnackBar('Lỗi xác thực: ${e.message}');
     } catch (e) {
-      _showSnackBar('Lỗi: $e');
+      _showSnackBar('Lỗi hệ thống: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -130,12 +134,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 24),
           const Text('Vai trò', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildRoleButton('Học viên', 'student'),
-              const SizedBox(width: 8),
-              _buildRoleButton('Giảng viên', 'teacher'),
-            ],
+          // BỔ SUNG THÊM NÚT CHỌN ADMIN ĐỂ BẠN TẠO TÀI KHOẢN TEST
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildRoleButton('Học viên', 'student'),
+                const SizedBox(width: 8),
+                _buildRoleButton('Giảng viên', 'teacher'),
+                const SizedBox(width: 8),
+                _buildRoleButton('Admin', 'admin'),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           _buildLabel('Họ và tên'),
@@ -178,8 +188,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)));
   Widget _buildTextField(TextEditingController controller, String hint, {bool obscureText = false}) => TextField(controller: controller, obscureText: obscureText, decoration: InputDecoration(hintText: hint, filled: true, fillColor: const Color(0xFFF9FAFB), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)));
+  
   Widget _buildRoleButton(String label, String role) {
     bool isSelected = selectedRole == role;
-    return Expanded(child: GestureDetector(onTap: () => setState(() => selectedRole = role), child: Container(padding: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: isSelected ? Theme.of(context).primaryColor : Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade200)), child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)))));
+    return GestureDetector(
+      onTap: () => setState(() => selectedRole = role), 
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16), 
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).primaryColor : Colors.white, 
+          borderRadius: BorderRadius.circular(10), 
+          border: Border.all(color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade200)
+        ), 
+        child: Text(label, textAlign: TextAlign.center, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))
+      )
+    );
   }
 }
