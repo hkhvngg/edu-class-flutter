@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/database_service.dart';
 import '../models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 class RegisterScreen extends StatefulWidget {
@@ -20,6 +20,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   Future<void> _handleRegister() async {
     if (_nameController.text.trim().isEmpty || 
@@ -49,20 +51,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
+        
+        // Gửi email xác thực (Firebase Link)
+        await user.sendEmailVerification();
 
         UserModel newUser = UserModel(
           uid: user.uid,
           email: user.email!,
           fullName: _nameController.text.trim(),
-          role: selectedRole, // Sẽ lưu theo role bạn chọn trên UI
+          role: selectedRole,
           createdAt: DateTime.now(),
         );
 
         await _databaseService.saveUser(newUser);
 
         if (mounted) {
-          _showSnackBar('Đăng ký tài khoản thành công!');
-          Navigator.pop(context);
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.mark_email_unread_outlined, color: Colors.blue, size: 28),
+                  SizedBox(width: 8),
+                  Text('Xác thực Email', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: const Text('Đăng ký thành công! Vui lòng kiểm tra hộp thư email (hoặc mục Thư rác/Spam) và nhấp vào đường link đính kèm để kích hoạt tài khoản của bạn.'),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // Đóng Dialog
+                    Navigator.pop(context); // Về màn login
+                  },
+                  child: const Text('Về trang Đăng nhập'),
+                ),
+              ],
+            ),
+          );
         }
       }
     } on TimeoutException {
@@ -78,7 +108,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _showSnackBar(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Thông báo', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -134,7 +188,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 24),
           const Text('Vai trò', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
-          // BỔ SUNG THÊM NÚT CHỌN ADMIN ĐỂ BẠN TẠO TÀI KHOẢN TEST
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -142,8 +195,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildRoleButton('Học viên', 'student'),
                 const SizedBox(width: 8),
                 _buildRoleButton('Giảng viên', 'teacher'),
-                const SizedBox(width: 8),
-                _buildRoleButton('Admin', 'admin'),
               ],
             ),
           ),
@@ -155,10 +206,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(_emailController, 'your.email@edu.vn'),
           const SizedBox(height: 20),
           _buildLabel('Mật khẩu'),
-          _buildTextField(_passwordController, '••••••••', obscureText: true),
+          _buildTextField(_passwordController, '••••••••', isPassword: true),
           const SizedBox(height: 20),
           _buildLabel('Xác nhận mật khẩu'),
-          _buildTextField(_confirmPasswordController, '••••••••', obscureText: true),
+          _buildTextField(_confirmPasswordController, '••••••••', isConfirmPassword: true),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -187,7 +238,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)));
-  Widget _buildTextField(TextEditingController controller, String hint, {bool obscureText = false}) => TextField(controller: controller, obscureText: obscureText, decoration: InputDecoration(hintText: hint, filled: true, fillColor: const Color(0xFFF9FAFB), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)));
+  Widget _buildTextField(TextEditingController controller, String hint, {bool isPassword = false, bool isConfirmPassword = false}) {
+    bool obscure = isPassword ? _obscurePassword : (isConfirmPassword ? _obscureConfirmPassword : false);
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        suffixIcon: (isPassword || isConfirmPassword) ? IconButton(
+          icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey),
+          onPressed: () {
+            setState(() {
+              if (isPassword) _obscurePassword = !_obscurePassword;
+              if (isConfirmPassword) _obscureConfirmPassword = !_obscureConfirmPassword;
+            });
+          },
+        ) : null,
+      ),
+    );
+  }
   
   Widget _buildRoleButton(String label, String role) {
     bool isSelected = selectedRole == role;

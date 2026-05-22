@@ -1,234 +1,137 @@
 import 'package:flutter/material.dart';
+import '../../../utils/ui_utils.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
+import '../../../services/database_service.dart';
+import '../../auth/models/user_model.dart';
+import '../../student/models/class_model.dart';
 
-class TeacherClass {
-  final String name;
-  final String subName;
-  final int studentCount;
-  final int materialCount;
-  final Color color;
-
-  TeacherClass({
-    required this.name,
-    required this.subName,
-    required this.studentCount,
-    required this.materialCount,
-    required this.color,
-  });
-}
-
-class TeacherDashboardScreen extends StatelessWidget {
+class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<TeacherClass> classes = [
-      TeacherClass(
-        name: 'Lập trình di động',
-        subName: 'Android & Flutter',
-        studentCount: 45,
-        materialCount: 8,
-        color: const Color(0xFF1967D2),
-      ),
-      TeacherClass(
-        name: 'Phát triển Web',
-        subName: 'React & Node.js',
-        studentCount: 38,
-        materialCount: 6,
-        color: const Color(0xFF1E8E3E),
-      ),
-    ];
+  State<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
+}
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text(
-          'Lớp học của tôi',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
+  final DatabaseService _databaseService = DatabaseService();
+  final String _uid = FirebaseAuth.instance.currentUser!.uid;
+
+  String _generateInviteCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return List.generate(6, (index) => chars[Random().nextInt(chars.length)]).join();
+  }
+
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.add_box_outlined),
+            title: const Text('Tạo lớp học'),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateClassDialog();
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateClassDialog() {
+    final nameController = TextEditingController();
+    final subNameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo lớp học'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Tên lớp (bắt buộc)')),
+            TextField(controller: subNameController, decoration: const InputDecoration(labelText: 'Phần/Mô tả')),
+          ],
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {},
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isNotEmpty) {
+                String classId = DateTime.now().millisecondsSinceEpoch.toString();
+                ClassModel newClass = ClassModel(
+                  classId: classId,
+                  className: nameController.text,
+                  subName: subNameController.text,
+                  description: '',
+                  teacherId: _uid,
+                  inviteCode: _generateInviteCode(),
+                  color: Colors.blue.value,
+                  studentCount: 0,
+                  createdAt: DateTime.now(),
+                );
+                await _databaseService.createClass(newClass);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Tạo'),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _buildStatCard(context, Icons.menu_book_rounded, '2', 'Lớp học'),
-                const SizedBox(width: 12),
-                _buildStatCard(context, Icons.people_outline, '83', 'Học viên'),
-                const SizedBox(width: 12),
-                _buildStatCard(context, Icons.description_outlined, '14', 'Tài liệu'),
-              ],
-            ),
-            const SizedBox(height: 24),
+    );
+  }
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text(
-                  'Tạo lớp học mới',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F172A),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('EduClass', style: TextStyle(fontWeight: FontWeight.w500)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0.5,
+        actions: [
+          IconButton(icon: const Icon(Icons.add, size: 28), onPressed: _showAddOptions),
+        ],
+      ),
+      body: StreamBuilder<List<ClassModel>>(
+        stream: _databaseService.getTeacherClasses(_uid),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          
+          final teacherClasses = snapshot.data ?? [];
 
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: classes.length,
-              itemBuilder: (context, index) {
-                final item = classes[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+          return StreamBuilder<List<ClassModel>>(
+            stream: _databaseService.getStudentClasses(_uid),
+            builder: (context, studentSnapshot) {
+              final joinedClasses = studentSnapshot.data ?? [];
+              final allVisibleClasses = [...teacherClasses, ...joinedClasses];
+
+              if (allVisibleClasses.isEmpty) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: item.color,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item.subName,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.people_outline, size: 18, color: Colors.grey.shade600),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${item.studentCount} học viên',
-                                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    Icon(Icons.description_outlined, size: 18, color: Colors.grey.shade600),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${item.materialCount} tài liệu',
-                                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {},
-                                    style: OutlinedButton.styleFrom(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      side: BorderSide(color: Colors.grey.shade300),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: const Text(
-                                      'Gửi tài liệu',
-                                      style: TextStyle(color: Colors.black87, fontSize: 13),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {},
-                                    style: OutlinedButton.styleFrom(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      side: BorderSide(color: Colors.grey.shade300),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: const Text(
-                                      'Thông báo',
-                                      style: TextStyle(color: Colors.black87, fontSize: 13),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {},
-                                    style: OutlinedButton.styleFrom(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      side: BorderSide(color: Colors.grey.shade300),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: const Text(
-                                      'Chi tiết',
-                                      style: TextStyle(color: Colors.black87, fontSize: 13),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                      Icon(Icons.school_outlined, size: 100, color: Colors.grey.shade200),
+                      const SizedBox(height: 16),
+                      const Text('Chưa có lớp học nào', style: TextStyle(color: Colors.grey, fontSize: 16)),
                     ],
                   ),
                 );
-              },
-            ),
-          ],
-        ),
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: allVisibleClasses.length,
+                itemBuilder: (context, index) => _buildClassCard(allVisibleClasses[index]),
+              );
+            },
+          );
+        },
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -237,58 +140,79 @@ class TeacherDashboardScreen extends StatelessWidget {
         showUnselectedLabels: true,
         currentIndex: 0,
         onTap: (index) {
-          if (index == 3) {
-            Navigator.pushReplacementNamed(context, '/teacher_profile');
+          if (index == 1) {
+            Navigator.pushNamed(context, '/create_quiz');
+          } else if (index == 2) {
+            Navigator.pushNamed(context, '/teacher_profile');
           }
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Lớp học',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.file_upload_outlined),
-            label: 'Tải lên',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
-            label: 'Danh mục',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Cá nhân',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Lớp học'),
+          BottomNavigationBarItem(icon: Icon(Icons.file_upload_outlined), label: 'Tải lên'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Cá nhân'),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(BuildContext context, IconData icon, String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.grey.shade700),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildClassCard(ClassModel item) {
+    bool isOwner = item.teacherId == _uid;
+    return FutureBuilder<UserModel?>(
+      future: _databaseService.getUser(item.teacherId),
+      builder: (context, snapshot) {
+        String teacherName = isOwner ? 'Tôi' : (snapshot.data?.fullName ?? 'Đang tải...');
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/class_detail', arguments: {
+            'classId': item.classId,
+            'className': item.className,
+            'subName': item.subName,
+            'teacher': teacherName,
+            'teacherId': item.teacherId,
+            'color': Color(item.color),
+          }),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            height: 140,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              image: DecorationImage(
+                image: const NetworkImage('https://www.gstatic.com/classroom/themes/img_code.jpg'),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  isOwner ? Colors.blue.withOpacity(0.7) : Colors.green.withOpacity(0.7), 
+                  BlendMode.multiply
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.className, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text(item.subName, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      const Spacer(),
+                      Text(teacherName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                      if (isOwner)
+                        Text('Mã lớp: ${item.inviteCode}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    onPressed: () {},
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

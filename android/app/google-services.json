@@ -1,0 +1,37 @@
+{
+  "project_info": {
+    "project_number": "827124946935",
+    "project_id": "educlass-7b83c",
+    "storage_bucket": "educlass-7b83c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827124946935:android:f75299e228d91b793b00f2",
+        "android_client_info": {
+          "package_name": "com.example.demo",
+          "certificate_hash": [
+            {
+              "sha1_hash": "26:89:FF:C2:AE:34:E5:B6:20:A1:76:76:B1:D3:3E:72:92:3D:FB:14"
+            },
+            {
+              "sha1_hash": "EF:B1:4F:59:B3:41:6D:59:4A:BE:48:9C:97:65:01:AB:F7:92:4A:9C:D4:A3:51:A8:4C:03:84:21:E3:D4:AA:C3"
+            }
+          ]
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBskwm4GVELKU6Tt6H2mjyigUVJqe2lkwI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../utils/ui_utils.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../services/database_service.dart';
+import '../../../services/ai_service.dart';
+import '../models/class_model.dart';
+import '../models/material_model.dart';
 
 class UploadMaterialScreen extends StatefulWidget {
   const UploadMaterialScreen({super.key});
@@ -9,6 +16,95 @@ class UploadMaterialScreen extends StatefulWidget {
 
 class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
   String selectedType = 'summary';
+  PlatformFile? _selectedFile;
+  bool _isUploading = false;
+  
+  final DatabaseService _databaseService = DatabaseService();
+  final AIService _aiService = AIService();
+  final String _uid = FirebaseAuth.instance.currentUser!.uid;
+
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedFile = result.files.first;
+      });
+    }
+  }
+
+  Future<void> _handleUpload() async {
+    if (_selectedFile == null) {
+      UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng chọn file PDF');
+      return;
+    }
+    if (_selectedFile!.path == null) {
+      UIUtils.showMessageDialog(context, 'Thông báo', 'Trình duyệt web chưa được hỗ trợ, vui lòng dùng app mobile/desktop.');
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    try {
+      // 1. Phân tích với Gemini
+      final aiResult = await _aiService.analyzeDocument(_selectedFile!.path!, selectedType);
+
+      // 2. Lưu vào Firestore với classId = 'personal'
+      final materialId = DateTime.now().millisecondsSinceEpoch.toString();
+      final material = MaterialModel(
+        materialId: materialId,
+        classId: 'personal',
+        uploaderId: _uid,
+        title: _selectedFile!.name,
+        fileUrl: 'local', // Do chưa tích hợp Firebase Storage
+        fileType: 'pdf',
+        analysisType: selectedType,
+        aiResult: aiResult,
+        status: 'completed',
+        createdAt: DateTime.now(),
+      );
+
+      await _databaseService.uploadMaterial(material);
+
+      if (mounted) {
+        String resultText = selectedType == 'summary' 
+            ? aiResult['summary'] 
+            : aiResult['questionsText'];
+            
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Kết quả phân tích', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Text(resultText),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedFile = null;
+                  });
+                },
+                child: const Text('Đóng'),
+              )
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        UIUtils.showMessageDialog(context, 'Thông báo', 'Có lỗi xảy ra: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,175 +116,143 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF0F172A),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSection(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Chọn loại phân tích',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTypeOption(
-                          icon: Icons.description_outlined,
-                          title: 'Tóm tắt',
-                          subtitle: 'Tóm tắt nội dung chính',
-                          isSelected: selectedType == 'summary',
-                          onTap: () => setState(() => selectedType = 'summary'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTypeOption(
-                          icon: Icons.help_outline,
-                          title: 'Câu hỏi',
-                          subtitle: 'Tạo trắc nghiệm',
-                          isSelected: selectedType == 'questions',
-                          onTap: () => setState(() => selectedType = 'questions'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Lược bỏ phần chọn lớp học vì sinh viên tải lên là tự ôn tập cá nhân
 
-            _buildSection(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Tải lên tài liệu PDF',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tải lên đề cương hoặc tài liệu học tập để nhận tóm tắt tự động bằng AI',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        style: BorderStyle.none,
+                // Mặc định luôn là Tóm tắt (selectedType = 'summary')
+
+                _buildSection(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tải lên tài liệu PDF',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300, width: 1),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tải lên đề cương hoặc tài liệu học tập để nhận tóm tắt tự động bằng AI',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(2.0),
-                        child: DottedBorderWidget(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                      const SizedBox(height: 20),
+                      
+                      if (_selectedFile != null)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
                             children: [
-                              Icon(Icons.upload_outlined, size: 48, color: Colors.grey.shade500),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Chọn file PDF',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 40),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedFile!.name,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${(_selectedFile!.size / 1024 / 1024).toStringAsFixed(2)} MB',
+                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'hoặc kéo thả file vào đây',
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.grey),
+                                onPressed: () => setState(() => _selectedFile = null),
                               ),
                             ],
                           ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: _pickFile,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 40),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.none),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300, width: 1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: DottedBorderWidget(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.upload_outlined, size: 48, color: Colors.grey.shade500),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Nhấn để chọn file PDF',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F2FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFC2D9FF)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline, color: Color(0xFFF59E0B), size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Mẹo sử dụng',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E40AF),
-                        ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildTipItem('File PDF nên rõ ràng, không bị mờ'),
-                  _buildTipItem('Kích thước tối đa: 10MB'),
-                  _buildTipItem('AI sẽ tóm tắt nội dung chính, cấu trúc và mục tiêu'),
-                  _buildTipItem('Thời gian xử lý: 10-30 giây'),
-                ],
+                ),
+                const SizedBox(height: 24),
+                
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isUploading ? null : _handleUpload,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isUploading 
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('TẢI LÊN & PHÂN TÍCH', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+          if (_isUploading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('AI đang đọc và phân tích...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF0F172A),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) Navigator.pushReplacementNamed(context, '/my_classes');
-          if (index == 3) Navigator.pushReplacementNamed(context, '/profile');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Lớp học',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.file_upload_outlined),
-            activeIcon: Icon(Icons.file_upload),
-            label: 'Tải lên',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
-            label: 'Danh mục',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Cá nhân',
-          ),
         ],
       ),
     );
@@ -252,24 +316,6 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTipItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('• ', style: TextStyle(color: Color(0xFF1E40AF), fontWeight: FontWeight.bold)),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF1E40AF)),
-            ),
-          ),
-        ],
       ),
     );
   }
