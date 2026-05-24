@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../utils/ui_utils.dart';
 import 'package:file_picker/file_picker.dart';
@@ -6,6 +7,7 @@ import '../../../services/database_service.dart';
 import '../../../services/ai_service.dart';
 import '../../student/models/class_model.dart';
 import '../../../models/quiz_model.dart';
+import '../../../utils/file_utils.dart';
 
 class CreateQuizScreen extends StatefulWidget {
   const CreateQuizScreen({super.key});
@@ -28,6 +30,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
+      withReadStream: true,
     );
 
     if (result != null) {
@@ -43,7 +46,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng chọn lớp học');
       return;
     }
-    if (_selectedFile == null || _selectedFile!.path == null) {
+    if (_selectedFile == null) {
       UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng chọn file PDF hợp lệ');
       return;
     }
@@ -53,8 +56,16 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       _generatedQuestions = null;
     });
 
+    File? tempFile;
+    bool isTemp = false;
     try {
-      final questionsList = await _aiService.generateQuizFromPdf(_selectedFile!.path!);
+      final file = await FileUtils.getLocalFile(_selectedFile!);
+      if (file.path != _selectedFile!.path) {
+        tempFile = file;
+        isTemp = true;
+      }
+
+      final questionsList = await _aiService.generateQuizFromPdf(file.path);
       List<QuestionModel> parsedQuestions = questionsList.map((q) => QuestionModel.fromMap(q)).toList();
 
       if (mounted) {
@@ -67,6 +78,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         UIUtils.showMessageDialog(context, 'Thông báo', 'Lỗi: $e');
       }
     } finally {
+      if (isTemp && tempFile != null) {
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          print("Lỗi xóa file tạm Quiz: $e");
+        }
+      }
       if (mounted) {
         setState(() => _isGenerating = false);
       }

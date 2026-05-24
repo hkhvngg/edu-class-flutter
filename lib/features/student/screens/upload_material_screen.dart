@@ -1,11 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../utils/ui_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/database_service.dart';
 import '../../../services/ai_service.dart';
-import '../models/class_model.dart';
 import '../models/material_model.dart';
+import '../../../utils/file_utils.dart';
 
 class UploadMaterialScreen extends StatefulWidget {
   const UploadMaterialScreen({super.key});
@@ -27,6 +28,7 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
+      withReadStream: true,
     );
 
     if (result != null) {
@@ -41,16 +43,20 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
       UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng chọn file PDF');
       return;
     }
-    if (_selectedFile!.path == null) {
-      UIUtils.showMessageDialog(context, 'Thông báo', 'Trình duyệt web chưa được hỗ trợ, vui lòng dùng app mobile/desktop.');
-      return;
-    }
 
     setState(() => _isUploading = true);
 
+    File? tempFile;
+    bool isTemp = false;
     try {
+      final file = await FileUtils.getLocalFile(_selectedFile!);
+      if (file.path != _selectedFile!.path) {
+        tempFile = file;
+        isTemp = true;
+      }
+
       // 1. Phân tích với Gemini
-      final aiResult = await _aiService.analyzeDocument(_selectedFile!.path!, selectedType);
+      final aiResult = await _aiService.analyzeDocument(file.path, selectedType);
 
       // 2. Lưu vào Firestore với classId = 'personal'
       final materialId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -100,6 +106,13 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
         UIUtils.showMessageDialog(context, 'Thông báo', 'Có lỗi xảy ra: $e');
       }
     } finally {
+      if (isTemp && tempFile != null) {
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          print("Lỗi xóa file tạm Material: $e");
+        }
+      }
       if (mounted) {
         setState(() => _isUploading = false);
       }

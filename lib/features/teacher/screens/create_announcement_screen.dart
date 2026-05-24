@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/announcement_model.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/database_service.dart';
+import '../../../utils/file_utils.dart';
 
 class CreateAnnouncementScreen extends StatefulWidget {
   final String classId;
@@ -37,6 +38,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
+      withReadStream: true,
     );
     if (result != null) {
       setState(() => _selectedPdf = result.files.first);
@@ -46,6 +48,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   Future<void> _pickVideo() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.video,
+      withReadStream: true,
     );
     if (result != null) {
       final file = result.files.first;
@@ -86,18 +89,28 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       String? videoUrl;
 
       // 1. Upload PDF if selected
-      if (_selectedPdf != null && _selectedPdf!.path != null) {
+      if (_selectedPdf != null) {
         setState(() => _uploadLabel = 'Đang tải PDF...');
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('announcements_pdfs/${DateTime.now().millisecondsSinceEpoch}.pdf');
 
-        final uploadTask = await storageRef.putFile(File(_selectedPdf!.path!));
+        final File pdfFile = await FileUtils.getLocalFile(_selectedPdf!);
+        final uploadTask = await storageRef.putFile(pdfFile);
         pdfUrl = await uploadTask.ref.getDownloadURL();
+
+        // Xóa file tạm nếu tạo file mới
+        if (pdfFile.path != _selectedPdf!.path) {
+          try {
+            await pdfFile.delete();
+          } catch (e) {
+            print("Lỗi xóa file tạm PDF: $e");
+          }
+        }
       }
 
       // 2. Upload Video if selected
-      if (_selectedVideo != null && _selectedVideo!.path != null) {
+      if (_selectedVideo != null) {
         setState(() {
           _uploadLabel = 'Đang tải video...';
           _uploadProgress = 0;
@@ -108,8 +121,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             .ref()
             .child('announcements_videos/${DateTime.now().millisecondsSinceEpoch}.$ext');
 
+        final File videoFile = await FileUtils.getLocalFile(_selectedVideo!);
         final uploadTask = storageRef.putFile(
-          File(_selectedVideo!.path!),
+          videoFile,
           SettableMetadata(contentType: 'video/$ext'),
         );
 
@@ -124,6 +138,15 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
         final snapshot = await uploadTask;
         videoUrl = await snapshot.ref.getDownloadURL();
+
+        // Xóa file tạm nếu tạo file mới
+        if (videoFile.path != _selectedVideo!.path) {
+          try {
+            await videoFile.delete();
+          } catch (e) {
+            print("Lỗi xóa file tạm video: $e");
+          }
+        }
       }
 
       // 3. Save to Firestore
