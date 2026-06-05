@@ -9,28 +9,35 @@ class AuthService {
   // Lấy User hiện tại
   User? get currentUser => _auth.currentUser;
 
-  Future<UserCredential> signIn(String email, String password) async {
+  Future<UserCredential> signIn(
+    String email,
+    String password, {
+    bool requireEmailVerification = true,
+  }) async {
     try {
       // Đảm bảo trim email để tránh lỗi khoảng trắng thừa
       UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
-      
+
       // Bỏ qua kiểm tra xác minh email cho tài khoản admin test
-      if (email.trim() != 'admin@educlass.com') {
+      if (requireEmailVerification && email.trim() != 'admin@educlass.com') {
         final user = credential.user;
         if (user != null && !user.emailVerified) {
           // Bỏ qua kiểm tra cho các tài khoản "cũ" (tạo trước khi có tính năng này)
           // Giả sử tính năng này được thêm vào ngày 22/05/2026
           final creationTime = user.metadata.creationTime;
-          final isLegacyAccount = creationTime != null && creationTime.isBefore(DateTime(2026, 5, 22));
+          final isLegacyAccount =
+              creationTime != null &&
+              creationTime.isBefore(DateTime(2026, 5, 22));
 
           if (!isLegacyAccount) {
             await _auth.signOut();
             throw FirebaseAuthException(
               code: 'email-not-verified',
-              message: 'Vui lòng xác thực email của bạn qua đường link đã được gửi tới hộp thư trước khi đăng nhập!',
+              message:
+                  'Vui lòng xác thực email của bạn qua đường link đã được gửi tới hộp thư trước khi đăng nhập!',
             );
           }
         }

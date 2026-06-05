@@ -59,7 +59,18 @@ class NotificationService {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
     
     if (token != null && uid != null) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final userDoc = await userRef.get();
+      final settings = userDoc.data()?['notificationSettings'];
+
+      if (settings is Map && settings['pushEnabled'] == false) {
+        await userRef.set({
+          'fcmToken': FieldValue.delete(),
+        }, SetOptions(merge: true));
+        return;
+      }
+
+      await userRef.set({
         'fcmToken': token,
       }, SetOptions(merge: true));
     }

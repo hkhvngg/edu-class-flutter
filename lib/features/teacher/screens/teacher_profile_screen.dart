@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../utils/ui_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/database_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/storage_service.dart';
 import '../../auth/models/user_model.dart';
 
@@ -14,12 +17,17 @@ class TeacherProfileScreen extends StatefulWidget {
 
 class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   final DatabaseService _databaseService = DatabaseService();
+  final NotificationService _notificationService = NotificationService();
   final StorageService _storageService = StorageService();
   final user = FirebaseAuth.instance.currentUser;
 
   UserModel? _userModel;
   bool _isLoading = true;
   bool _isUploadingAvatar = false;
+  bool _pushNotificationsEnabled = true;
+  bool _emailNotificationsEnabled = true;
+  bool _classAnnouncementNotificationsEnabled = true;
+  bool _quizReminderNotificationsEnabled = true;
 
   @override
   void initState() {
@@ -31,9 +39,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     try {
       if (user != null) {
         final userData = await _databaseService.getUser(user!.uid);
+        final notificationSettings = await _databaseService.getNotificationSettings(user!.uid);
         if (mounted) {
           setState(() {
             _userModel = userData;
+            _pushNotificationsEnabled = notificationSettings['pushEnabled'] ?? true;
+            _emailNotificationsEnabled = notificationSettings['emailEnabled'] ?? true;
+            _classAnnouncementNotificationsEnabled = notificationSettings['classAnnouncementsEnabled'] ?? true;
+            _quizReminderNotificationsEnabled = notificationSettings['quizRemindersEnabled'] ?? true;
             _isLoading = false;
           });
         }
@@ -258,13 +271,281 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature - Tính năng đang phát triển'),
-        backgroundColor: const Color(0xFF64748B),
+  void _showNotificationSettingsDialog() {
+    bool pushEnabled = _pushNotificationsEnabled;
+    bool emailEnabled = _emailNotificationsEnabled;
+    bool classAnnouncementsEnabled = _classAnnouncementNotificationsEnabled;
+    bool quizRemindersEnabled = _quizReminderNotificationsEnabled;
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.notifications_none_rounded, color: Color(0xFF0F172A)),
+              SizedBox(width: 10),
+              Text('Cài đặt thông báo', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildNotificationSwitch(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Thông báo đẩy',
+                  subtitle: 'Nhận thông báo trên thiết bị hiện tại',
+                  value: pushEnabled,
+                  onChanged: (value) => setDialogState(() => pushEnabled = value),
+                ),
+                _buildNotificationSwitch(
+                  icon: Icons.email_outlined,
+                  title: 'Thông báo email',
+                  subtitle: 'Lưu lựa chọn nhận thông báo qua email',
+                  value: emailEnabled,
+                  onChanged: (value) => setDialogState(() => emailEnabled = value),
+                ),
+                _buildNotificationSwitch(
+                  icon: Icons.campaign_outlined,
+                  title: 'Thông báo lớp học',
+                  subtitle: 'Thông tin mới liên quan đến lớp đang dạy',
+                  value: classAnnouncementsEnabled,
+                  onChanged: (value) => setDialogState(() => classAnnouncementsEnabled = value),
+                ),
+                _buildNotificationSwitch(
+                  icon: Icons.quiz_outlined,
+                  title: 'Nhắc nhở kiểm tra',
+                  subtitle: 'Theo dõi bài kiểm tra và hoạt động học viên',
+                  value: quizRemindersEnabled,
+                  onChanged: (value) => setDialogState(() => quizRemindersEnabled = value),
+                ),
+                if (!pushEnabled)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
+                    ),
+                    child: const Text(
+                      'Khi tắt thông báo đẩy, thiết bị hiện tại sẽ không nhận thông báo mới.',
+                      style: TextStyle(color: Color(0xFF92400E), fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+              child: Text('Hủy', style: TextStyle(color: Colors.grey.shade600)),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      final settings = {
+                        'pushEnabled': pushEnabled,
+                        'emailEnabled': emailEnabled,
+                        'classAnnouncementsEnabled': classAnnouncementsEnabled,
+                        'quizRemindersEnabled': quizRemindersEnabled,
+                      };
+
+                      try {
+                        await _databaseService.updateNotificationSettings(user!.uid, settings);
+                        if (pushEnabled) {
+                          await _notificationService.init();
+                          await _notificationService.saveTokenToDatabase();
+                        }
+
+                        if (!mounted) return;
+                        setState(() {
+                          _pushNotificationsEnabled = pushEnabled;
+                          _emailNotificationsEnabled = emailEnabled;
+                          _classAnnouncementNotificationsEnabled = classAnnouncementsEnabled;
+                          _quizReminderNotificationsEnabled = quizRemindersEnabled;
+                        });
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Đã lưu cài đặt thông báo!'),
+                            backgroundColor: Color(0xFF22C55E),
+                          ),
+                        );
+                      } catch (e) {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => isSaving = false);
+                        }
+                        if (mounted) {
+                          UIUtils.showMessageDialog(
+                            context,
+                            'Lỗi',
+                            'Không thể lưu cài đặt thông báo: $e',
+                            isError: true,
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F172A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: isSaving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Lưu'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildNotificationSwitch({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(icon, color: const Color(0xFF0F172A)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+      value: value,
+      activeThumbColor: const Color(0xFF0F172A),
+      onChanged: onChanged,
+    );
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.help_outline_rounded, color: Color(0xFF0F172A)),
+            SizedBox(width: 10),
+            Text('Trợ giúp', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHelpItem(
+                Icons.school_outlined,
+                'Quản lý lớp học',
+                'Vào tab Lớp học để xem lớp đang dạy và mở chi tiết từng lớp.',
+              ),
+              _buildHelpItem(
+                Icons.quiz_outlined,
+                'Tạo bài kiểm tra',
+                'Chọn tab Tải lên, chọn lớp học và tải file PDF để tạo câu hỏi.',
+              ),
+              _buildHelpItem(
+                Icons.campaign_outlined,
+                'Đăng thông báo',
+                'Mở chi tiết lớp học, vào mục thông báo và nhập nội dung cần gửi cho học viên.',
+              ),
+              _buildHelpItem(
+                Icons.person_outline,
+                'Hồ sơ cá nhân',
+                'Tại màn hình này, giảng viên có thể đổi tên, ảnh đại diện, mật khẩu và thông báo.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: _copySupportInfo,
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Sao chép hỗ trợ'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _openSupportEmail,
+            icon: const Icon(Icons.email_outlined),
+            label: const Text('Liên hệ'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHelpItem(IconData icon, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF0F172A), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(description, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copySupportInfo() async {
+    await Clipboard.setData(
+      ClipboardData(
+        text: 'EduClass support\nEmail: admin@educlass.com\nTài khoản: ${user?.email ?? ''}',
+      ),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã sao chép thông tin hỗ trợ!'),
+        backgroundColor: Color(0xFF22C55E),
+      ),
+    );
+  }
+
+  Future<void> _openSupportEmail() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'admin@educlass.com',
+      queryParameters: {
+        'subject': 'Hỗ trợ EduClass - Giảng viên',
+        'body': 'Tài khoản: ${user?.email ?? ''}\nMô tả vấn đề:\n',
+      },
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+      return;
+    }
+
+    await _copySupportInfo();
   }
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -502,14 +783,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 icon: Icons.notifications_none_rounded,
                 title: 'Cài đặt thông báo',
                 subtitle: 'Email, push notification',
-                onTap: () => _showComingSoon('Cài đặt thông báo'),
+                onTap: _showNotificationSettingsDialog,
               ),
               const SizedBox(height: 10),
               _buildMenuItem(
                 icon: Icons.help_outline_rounded,
                 title: 'Trợ giúp',
                 subtitle: 'Hướng dẫn sử dụng',
-                onTap: () => _showComingSoon('Trợ giúp'),
+                onTap: _showHelpDialog,
               ),
 
               const SizedBox(height: 28),

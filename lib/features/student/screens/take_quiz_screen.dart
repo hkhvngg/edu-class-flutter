@@ -14,7 +14,8 @@ class TakeQuizScreen extends StatefulWidget {
 
 class _TakeQuizScreenState extends State<TakeQuizScreen> {
   int _currentIndex = 0;
-  Map<int, int> _selectedAnswers = {}; // Lưu index của option được chọn cho từng câu hỏi
+  Map<int, int> _selectedAnswers =
+      {}; // Lưu index của option được chọn cho từng câu hỏi
   bool _isSubmitted = false;
 
   void _submitQuiz() async {
@@ -39,6 +40,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
           user.displayName ?? 'Học viên',
           correctCount,
           questions.length,
+          classId: widget.quizData['classId'],
         );
       }
     }
@@ -78,7 +80,10 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
         elevation: 0.5,
@@ -93,9 +98,22 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
               width: double.infinity,
               child: Column(
                 children: [
-                  const Text('KẾT QUẢ BÀI LÀM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'KẾT QUẢ BÀI LÀM',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('$correctCount / ${questions.length}', style: const TextStyle(color: Colors.greenAccent, fontSize: 32, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$correctCount / ${questions.length}',
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             )
@@ -106,12 +124,21 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Câu ${_currentIndex + 1}/${questions.length}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text('Đã làm: ${_selectedAnswers.length}/${questions.length}', style: TextStyle(color: Colors.grey.shade600)),
+                  Text(
+                    'Câu ${_currentIndex + 1}/${questions.length}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    'Đã làm: ${_selectedAnswers.length}/${questions.length}',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),
-          
+
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -121,10 +148,14 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                   // Câu hỏi
                   Text(
                     currentQ['questionText'] ?? '',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, height: 1.5),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Các lựa chọn
                   ...List.generate(options.length, (idx) {
                     bool isSelected = _selectedAnswers[_currentIndex] == idx;
@@ -164,7 +195,10 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: boxColor,
-                          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+                          border: Border.all(
+                            color: borderColor,
+                            width: isSelected ? 2 : 1,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -175,21 +209,46 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: isSelected || (_isSubmitted && isCorrectOption) ? borderColor : Colors.transparent,
-                                border: Border.all(color: isSelected || (_isSubmitted && isCorrectOption) ? borderColor : Colors.grey.shade400),
+                                color:
+                                    isSelected ||
+                                        (_isSubmitted && isCorrectOption)
+                                    ? borderColor
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color:
+                                      isSelected ||
+                                          (_isSubmitted && isCorrectOption)
+                                      ? borderColor
+                                      : Colors.grey.shade400,
+                                ),
                               ),
                               child: Text(
                                 String.fromCharCode(65 + idx), // A, B, C, D
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: isSelected || (_isSubmitted && isCorrectOption) ? Colors.white : Colors.grey.shade600,
+                                  color:
+                                      isSelected ||
+                                          (_isSubmitted && isCorrectOption)
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Expanded(child: Text(options[idx], style: TextStyle(color: textColor, fontSize: 16))),
+                            Expanded(
+                              child: Text(
+                                options[idx],
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
                             if (_isSubmitted && isCorrectOption)
-                              const Icon(Icons.check_circle, color: Colors.green),
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                              ),
                             if (_isSubmitted && isSelected && !isCorrectOption)
                               const Icon(Icons.cancel, color: Colors.red),
                           ],
@@ -213,13 +272,25 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.lightbulb_outline, color: Colors.amber),
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: Colors.amber,
+                              ),
                               SizedBox(width: 8),
-                              Text('Giải thích từ AI:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber)),
+                              Text(
+                                'Giải thích từ AI:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(explanation, style: const TextStyle(fontSize: 14)),
+                          Text(
+                            explanation,
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ],
                       ),
                     ),
@@ -227,7 +298,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
               ),
             ),
           ),
-          
+
           // Thanh điều hướng dưới
           Container(
             padding: const EdgeInsets.all(16),
@@ -236,33 +307,56 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton(
-                  onPressed: _currentIndex > 0 ? () => setState(() => _currentIndex--) : null,
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.black87),
+                  onPressed: _currentIndex > 0
+                      ? () => setState(() => _currentIndex--)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                    foregroundColor: Colors.black87,
+                  ),
                   child: const Text('Câu trước'),
                 ),
                 if (_currentIndex < questions.length - 1)
                   ElevatedButton(
                     onPressed: () => setState(() => _currentIndex++),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
+                    ),
                     child: const Text('Câu sau'),
                   )
                 else if (!_isSubmitted)
                   ElevatedButton(
-                    onPressed: _selectedAnswers.length == questions.length ? _submitQuiz : () {
-                      UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng hoàn thành tất cả các câu hỏi');
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                    child: const Text('Nộp bài', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: _selectedAnswers.length == questions.length
+                        ? _submitQuiz
+                        : () {
+                            UIUtils.showMessageDialog(
+                              context,
+                              'Thông báo',
+                              'Vui lòng hoàn thành tất cả các câu hỏi',
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text(
+                      'Nộp bài',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   )
                 else
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
                     child: const Text('Hoàn tất'),
-                  )
+                  ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

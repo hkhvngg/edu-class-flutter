@@ -10,7 +10,10 @@ class AdminDashboardScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Admin Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
         actions: [
@@ -46,10 +49,38 @@ class AdminDashboardScreen extends StatelessWidget {
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 children: [
-                  _buildAdminCard(context, Icons.people_alt_rounded, 'Người dùng', 'Quản lý học viên & GV', Colors.blue, '/admin_users'),
-                  _buildAdminCard(context, Icons.class_rounded, 'Lớp học', 'Quản lý các lớp học', Colors.green, '/admin_classes'),
-                  _buildAdminCard(context, Icons.settings_suggest_rounded, 'Cài đặt', 'Cấu hình hệ thống', Colors.orange, ''),
-                  _buildAdminCard(context, Icons.analytics_rounded, 'Thống kê', 'Báo cáo hoạt động', Colors.purple, '/admin_stats'),
+                  _buildAdminCard(
+                    context,
+                    Icons.people_alt_rounded,
+                    'Người dùng',
+                    'Quản lý học viên & GV',
+                    Colors.blue,
+                    '/admin_users',
+                  ),
+                  _buildAdminCard(
+                    context,
+                    Icons.class_rounded,
+                    'Lớp học',
+                    'Quản lý các lớp học',
+                    Colors.green,
+                    '/admin_classes',
+                  ),
+                  _buildAdminCard(
+                    context,
+                    Icons.settings_suggest_rounded,
+                    'Cài đặt',
+                    'Cấu hình hệ thống',
+                    Colors.orange,
+                    '/admin_settings',
+                  ),
+                  _buildAdminCard(
+                    context,
+                    Icons.analytics_rounded,
+                    'Thống kê',
+                    'Báo cáo hoạt động',
+                    Colors.purple,
+                    '/admin_stats',
+                  ),
                 ],
               ),
             ),
@@ -59,13 +90,24 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAdminCard(BuildContext context, IconData icon, String title, String subtitle, Color color, String route) {
+  Widget _buildAdminCard(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+    String route,
+  ) {
     return InkWell(
       onTap: () {
         if (route.isNotEmpty) {
           Navigator.pushNamed(context, route);
         } else {
-          UIUtils.showMessageDialog(context, 'Thông báo', 'Tính năng $title đang được phát triển');
+          UIUtils.showMessageDialog(
+            context,
+            'Thông báo',
+            'Tính năng $title đang được phát triển',
+          );
         }
       },
       child: Container(
@@ -94,7 +136,10 @@ class AdminDashboardScreen extends StatelessWidget {
               child: Icon(icon, size: 32, color: color),
             ),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 4),
             Text(
               subtitle,

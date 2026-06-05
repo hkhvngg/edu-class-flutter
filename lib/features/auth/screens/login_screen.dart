@@ -137,7 +137,7 @@ class _LoginViewState extends State<LoginView> {
         children: [
           const Text('Đăng nhập', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 32),
-          _buildTextField(_emailController, 'Email', 'your.email@edu.vn'),
+          _buildTextField(_emailController, 'Email', 'Enter your email'),
           const SizedBox(height: 20),
           _buildTextField(_passwordController, 'Mật khẩu', '••••••••', isPassword: true),
           const SizedBox(height: 32),
