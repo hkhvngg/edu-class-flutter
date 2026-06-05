@@ -20,6 +20,21 @@ class LoginSuccess extends LoginState {
   List<Object?> get props => [role];
 }
 
+class GoogleProfileRequired extends LoginState {
+  final String email;
+  final String suggestedName;
+  final String? photoUrl;
+
+  const GoogleProfileRequired({
+    required this.email,
+    required this.suggestedName,
+    this.photoUrl,
+  });
+
+  @override
+  List<Object?> get props => [email, suggestedName, photoUrl];
+}
+
 class LoginFailure extends LoginState {
   final String message;
 

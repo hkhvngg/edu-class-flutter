@@ -14,8 +14,7 @@ class TakeQuizScreen extends StatefulWidget {
 
 class _TakeQuizScreenState extends State<TakeQuizScreen> {
   int _currentIndex = 0;
-  Map<int, int> _selectedAnswers =
-      {}; // Lưu index của option được chọn cho từng câu hỏi
+  Map<int, int> _selectedAnswers = {};
   bool _isSubmitted = false;
 
   void _submitQuiz() async {
@@ -67,7 +66,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
     final int correctIndex = currentQ['correctAnswerIndex'] ?? 0;
     final String explanation = currentQ['explanation'] ?? '';
 
-    // Đếm số câu đúng
     int correctCount = 0;
     if (_isSubmitted) {
       for (int i = 0; i < questions.length; i++) {
@@ -90,7 +88,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
       ),
       body: Column(
         children: [
-          // Header kết quả
           if (_isSubmitted)
             Container(
               padding: const EdgeInsets.all(16),
@@ -145,7 +142,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Câu hỏi
                   Text(
                     currentQ['questionText'] ?? '',
                     style: const TextStyle(
@@ -156,7 +152,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Các lựa chọn
                   ...List.generate(options.length, (idx) {
                     bool isSelected = _selectedAnswers[_currentIndex] == idx;
                     bool isCorrectOption = idx == correctIndex;
@@ -223,7 +218,7 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                                 ),
                               ),
                               child: Text(
-                                String.fromCharCode(65 + idx), // A, B, C, D
+                                String.fromCharCode(65 + idx),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color:
@@ -257,7 +252,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
                     );
                   }),
 
-                  // Giải thích (chỉ hiện khi đã nộp bài)
                   if (_isSubmitted && explanation.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 16),
@@ -299,7 +293,6 @@ class _TakeQuizScreenState extends State<TakeQuizScreen> {
             ),
           ),
 
-          // Thanh điều hướng dưới
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,

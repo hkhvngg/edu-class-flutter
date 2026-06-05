@@ -21,7 +21,8 @@ class CreateAnnouncementScreen extends StatefulWidget {
   });
 
   @override
-  State<CreateAnnouncementScreen> createState() => _CreateAnnouncementScreenState();
+  State<CreateAnnouncementScreen> createState() =>
+      _CreateAnnouncementScreenState();
 }
 
 class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
@@ -74,7 +75,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   Future<void> _submit() async {
     if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
-      UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng nhập tiêu đề và nội dung');
+      UIUtils.showMessageDialog(
+        context,
+        'Thông báo',
+        'Vui lòng nhập tiêu đề và nội dung',
+      );
       return;
     }
 
@@ -88,15 +93,17 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       String? pdfUrl;
       String? videoUrl;
 
-      // 1. Upload PDF if selected
       if (_selectedPdf != null) {
         setState(() => _uploadLabel = 'Đang tải PDF...');
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('announcements_pdfs/${DateTime.now().millisecondsSinceEpoch}.pdf');
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'announcements_pdfs/${DateTime.now().millisecondsSinceEpoch}.pdf',
+        );
 
         final File pdfFile = await FileUtils.getLocalFile(_selectedPdf!);
-        final uploadTask = await storageRef.putFile(pdfFile);
+        final uploadTask = await storageRef.putFile(
+          pdfFile,
+          SettableMetadata(contentType: 'application/pdf'),
+        );
         pdfUrl = await uploadTask.ref.getDownloadURL();
 
         // Xóa file tạm nếu tạo file mới
@@ -109,7 +116,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         }
       }
 
-      // 2. Upload Video if selected
       if (_selectedVideo != null) {
         setState(() {
           _uploadLabel = 'Đang tải video...';
@@ -117,9 +123,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         });
 
         final ext = _selectedVideo!.extension ?? 'mp4';
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('announcements_videos/${DateTime.now().millisecondsSinceEpoch}.$ext');
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'announcements_videos/${DateTime.now().millisecondsSinceEpoch}.$ext',
+        );
 
         final File videoFile = await FileUtils.getLocalFile(_selectedVideo!);
         final uploadTask = storageRef.putFile(
@@ -127,7 +133,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           SettableMetadata(contentType: 'video/$ext'),
         );
 
-        // Theo dõi tiến trình upload
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
           if (mounted) {
             setState(() {
@@ -149,10 +154,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         }
       }
 
-      // 3. Save to Firestore
       setState(() => _uploadLabel = 'Đang lưu...');
       final String uid = FirebaseAuth.instance.currentUser!.uid;
-      final docRef = FirebaseFirestore.instance.collection('announcements').doc();
+      final docRef = FirebaseFirestore.instance
+          .collection('announcements')
+          .doc();
 
       final announcement = AnnouncementModel(
         id: docRef.id,
@@ -167,26 +173,54 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
       await docRef.set(announcement.toMap());
 
-      // 4. Lấy tất cả FCM token của học sinh trong lớp
+      String resultMessage = 'Đã đăng thông báo thành công!';
       final DatabaseService db = DatabaseService();
       List<String> tokens = await db.getClassMemberTokens(widget.classId);
 
-      // 5. Gửi thông báo
-      if (tokens.isNotEmpty) {
-        await _notificationService.sendNotificationToMultiple(
-          title: _titleController.text,
-          body: _descriptionController.text,
-          fcmTokens: tokens,
-        );
+      if (tokens.isEmpty) {
+        resultMessage =
+            'Đã đăng thông báo, nhưng chưa có thiết bị học viên nào nhận thông báo đẩy. Học viên cần đăng nhập lại và cho phép thông báo.';
+      } else {
+        setState(() => _uploadLabel = 'Đang gửi thông báo đẩy...');
+        try {
+          final sentCount = await _notificationService
+              .sendNotificationToMultiple(
+                title: _titleController.text,
+                body: _descriptionController.text,
+                fcmTokens: tokens,
+                data: {
+                  'type': 'class_announcement',
+                  'classId': widget.classId,
+                  'announcementId': docRef.id,
+                },
+              );
+          resultMessage =
+              'Đã đăng thông báo và gửi thông báo đẩy tới học viên.';
+        } catch (e) {
+          resultMessage =
+              'Đã đăng thông báo, nhưng gửi thông báo đẩy thất bại: $e';
+        }
       }
 
       if (mounted) {
-        UIUtils.showMessageDialog(context, 'Thông báo', 'Đã đăng và gửi thông báo thành công!');
+        await UIUtils.showMessageDialog(
+          context,
+          'Thông báo',
+          resultMessage,
+          isError: resultMessage.contains('thất bại'),
+        );
+      }
+      if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        UIUtils.showMessageDialog(context, 'Thông báo', 'Có lỗi xảy ra: $e');
+        UIUtils.showMessageDialog(
+          context,
+          'Không thể đăng thông báo',
+          _friendlyAnnouncementError(e),
+          isError: true,
+        );
       }
     } finally {
       if (mounted) {
@@ -205,6 +239,20 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  String _friendlyAnnouncementError(Object error) {
+    final message = error.toString();
+    if (message.contains('permission-denied')) {
+      return 'Bạn không có quyền đăng thông báo cho lớp này. Vui lòng kiểm tra tài khoản giảng viên hoặc quyền Firebase.';
+    }
+    if (message.contains('network') || message.contains('SocketException')) {
+      return 'Không thể kết nối mạng. Vui lòng kiểm tra internet rồi thử lại.';
+    }
+    if (message.contains('storage') || message.contains('object-not-found')) {
+      return 'Không thể tải tệp đính kèm lên Firebase Storage. Vui lòng thử lại hoặc chọn tệp khác.';
+    }
+    return 'Không thể đăng thông báo lúc này. Chi tiết: $message';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -221,13 +269,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                       const SizedBox(height: 16),
                       Text(
                         '${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ] else
                       const CircularProgressIndicator(),
                     const SizedBox(height: 12),
                     if (_uploadLabel.isNotEmpty)
-                      Text(_uploadLabel, style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        _uploadLabel,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
                   ],
                 ),
               ),
@@ -255,7 +309,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // PDF picker
                   Row(
                     children: [
                       ElevatedButton.icon(
@@ -266,7 +319,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          _selectedPdf != null ? _selectedPdf!.name : 'Chưa chọn file',
+                          _selectedPdf != null
+                              ? _selectedPdf!.name
+                              : 'Chưa chọn file',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -274,7 +329,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Video picker
                   const Text(
                     'Video bài giảng (Tùy chọn)',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -290,7 +344,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.videocam, color: Colors.blue, size: 32),
+                          const Icon(
+                            Icons.videocam,
+                            color: Colors.blue,
+                            size: 32,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -298,14 +356,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                               children: [
                                 Text(
                                   _selectedVideo!.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   _formatFileSize(_selectedVideo!.size),
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -324,8 +387,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                       icon: const Icon(Icons.video_call, size: 28),
                       label: const Text('Chọn video từ máy'),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 20,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: BorderSide(color: Colors.blue.shade300),
                       ),
                     ),

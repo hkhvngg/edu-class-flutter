@@ -48,7 +48,6 @@ class DatabaseService {
     }
   }
 
-  // Cập nhật thông tin profile
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
     try {
       await _db
@@ -157,7 +156,6 @@ class DatabaseService {
     }
   }
 
-  // Cập nhật ảnh đại diện
   Future<void> updateProfileImage(String uid, String imageUrl) async {
     try {
       await _db
@@ -200,7 +198,6 @@ class DatabaseService {
     if (classQuery.docs.isEmpty) return false;
     var classId = classQuery.docs.first.id;
 
-    // Kiểm tra xem đã tham gia chưa để tránh trùng lặp
     var existing = await _db
         .collection('enrollments')
         .where('studentId', isEqualTo: studentId)
@@ -240,7 +237,6 @@ class DatabaseService {
         });
   }
 
-  // Lấy danh sách học viên của một lớp
   Stream<List<UserModel>> getClassMembers(String classId) {
     return _db
         .collection('enrollments')
@@ -259,7 +255,6 @@ class DatabaseService {
         });
   }
 
-  // Lấy danh sách FCM Token của học viên trong lớp
   Future<List<String>> getClassMemberTokens(String classId) async {
     List<String> tokens = [];
     var enrollments = await _db
@@ -270,8 +265,13 @@ class DatabaseService {
     for (var doc in enrollments.docs) {
       var studentId = doc.data()['studentId'];
       var userDoc = await _db.collection('users').doc(studentId).get();
-      if (userDoc.exists && userDoc.data()!.containsKey('fcmToken')) {
-        tokens.add(userDoc.data()!['fcmToken']);
+      final userData = userDoc.data();
+      final token = userData?['fcmToken'];
+      final settings = userData?['notificationSettings'];
+      final classAnnouncementsEnabled =
+          settings is! Map || settings['classAnnouncementsEnabled'] != false;
+      if (token is String && token.isNotEmpty && classAnnouncementsEnabled) {
+        tokens.add(token);
       }
     }
     return tokens;

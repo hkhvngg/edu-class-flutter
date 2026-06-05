@@ -1,4 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../../../utils/ui_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -11,13 +17,15 @@ class AnnouncementDetailScreen extends StatefulWidget {
   const AnnouncementDetailScreen({super.key, required this.announcement});
 
   @override
-  State<AnnouncementDetailScreen> createState() => _AnnouncementDetailScreenState();
+  State<AnnouncementDetailScreen> createState() =>
+      _AnnouncementDetailScreenState();
 }
 
 class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
   bool _isVideoLoading = false;
+  bool _isPdfDownloading = false;
   String? _videoError;
 
   @override
@@ -27,7 +35,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   }
 
   Future<void> _initVideoPlayer() async {
-    final hasVideo = widget.announcement.videoUrl != null &&
+    final hasVideo =
+        widget.announcement.videoUrl != null &&
         widget.announcement.videoUrl!.isNotEmpty;
     if (!hasVideo) return;
 
@@ -59,7 +68,11 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
         placeholder: Container(
           color: Colors.black,
           child: const Center(
-            child: Icon(Icons.play_circle_outline, color: Colors.white54, size: 64),
+            child: Icon(
+              Icons.play_circle_outline,
+              color: Colors.white54,
+              size: 64,
+            ),
           ),
         ),
         errorBuilder: (context, errorMessage) {
@@ -107,15 +120,124 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (context.mounted) {
-        UIUtils.showMessageDialog(context, 'Lỗi', 'Không thể mở file PDF.', isError: true);
+        UIUtils.showMessageDialog(
+          context,
+          'Lỗi',
+          'Không thể mở file PDF.',
+          isError: true,
+        );
       }
     }
   }
 
+  Future<void> _downloadPdf(BuildContext context, String url) async {
+    if (_isPdfDownloading) return;
+
+    setState(() => _isPdfDownloading = true);
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        throw Exception('Không tải được file PDF (${response.statusCode}).');
+      }
+
+      final fileName = _pdfFileName();
+      final savedPath = await _savePdfFile(
+        fileName: fileName,
+        bytes: response.bodyBytes,
+      );
+
+      if (!context.mounted) return;
+      if (savedPath == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã hủy tải file PDF.')));
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã tải PDF: $fileName'),
+          action: SnackBarAction(
+            label: 'Mở',
+            onPressed: () => _openSavedPdf(context, savedPath, url),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        UIUtils.showMessageDialog(
+          context,
+          'Lỗi',
+          'Không thể tải file PDF: $e',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPdfDownloading = false);
+      }
+    }
+  }
+
+  Future<String?> _savePdfFile({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    try {
+      final pickedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Lưu tài liệu PDF',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes: bytes,
+      );
+      if (pickedPath != null && pickedPath.isNotEmpty) {
+        return pickedPath;
+      }
+      return null;
+    } catch (_) {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsBytes(bytes, flush: true);
+      return file.path;
+    }
+  }
+
+  Future<void> _openSavedPdf(
+    BuildContext context,
+    String savedPath,
+    String originalUrl,
+  ) async {
+    final uri = savedPath.startsWith('content://')
+        ? Uri.parse(savedPath)
+        : Uri.file(savedPath);
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      return;
+    }
+
+    if (context.mounted) {
+      await _openPdf(context, originalUrl);
+    }
+  }
+
+  String _pdfFileName() {
+    final safeTitle = widget.announcement.title
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9À-ỹ._ -]'), '_')
+        .replaceAll(RegExp(r'\s+'), '_');
+    final baseName = safeTitle.isEmpty
+        ? 'tai_lieu_${widget.announcement.id}'
+        : safeTitle;
+    return baseName.toLowerCase().endsWith('.pdf') ? baseName : '$baseName.pdf';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasPdf = widget.announcement.pdfUrl != null && widget.announcement.pdfUrl!.isNotEmpty;
-    final hasVideo = widget.announcement.videoUrl != null &&
+    final hasPdf =
+        widget.announcement.pdfUrl != null &&
+        widget.announcement.pdfUrl!.isNotEmpty;
+    final hasVideo =
+        widget.announcement.videoUrl != null &&
         widget.announcement.videoUrl!.isNotEmpty;
 
     return Scaffold(
@@ -129,7 +251,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             Text(
               widget.announcement.title,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -141,20 +262,20 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             ),
             const Divider(height: 32),
 
-            // Description
             Text(
               widget.announcement.description,
               style: const TextStyle(fontSize: 16, height: 1.5),
             ),
             const SizedBox(height: 24),
 
-            // Video Player Section
             if (hasVideo) ...[
-              const Text('Video bài giảng:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text(
+                'Video bài giảng:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
               const SizedBox(height: 12),
 
               if (_isVideoLoading) ...[
-                // Loading state
                 Container(
                   width: double.infinity,
                   height: 220,
@@ -168,13 +289,15 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                       children: [
                         CircularProgressIndicator(color: Colors.white),
                         SizedBox(height: 12),
-                        Text('Đang tải video...', style: TextStyle(color: Colors.white70)),
+                        Text(
+                          'Đang tải video...',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ] else if (_videoError != null) ...[
-                // Error state
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -185,7 +308,11 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 48,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         _videoError!,
@@ -202,7 +329,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                   ),
                 ),
               ] else if (_chewieController != null) ...[
-                // Player ready
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: AspectRatio(
@@ -215,17 +341,78 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
               const SizedBox(height: 24),
             ],
 
-            // PDF Section
             if (hasPdf) ...[
-              const Text('Tài liệu đính kèm:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text(
+                'Tài liệu đính kèm:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
               const SizedBox(height: 8),
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 36),
-                  title: const Text('Tải / Xem file PDF'),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _openPdf(context, widget.announcement.pdfUrl!),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.red,
+                            size: 36,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'File PDF của thông báo',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _openPdf(
+                                context,
+                                widget.announcement.pdfUrl!,
+                              ),
+                              icon: const Icon(Icons.visibility_outlined),
+                              label: const Text('Xem PDF'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isPdfDownloading
+                                  ? null
+                                  : () => _downloadPdf(
+                                      context,
+                                      widget.announcement.pdfUrl!,
+                                    ),
+                              icon: _isPdfDownloading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.download_outlined),
+                              label: Text(
+                                _isPdfDownloading ? 'Đang tải' : 'Tải PDF',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

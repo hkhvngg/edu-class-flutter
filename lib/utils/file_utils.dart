@@ -14,17 +14,17 @@ class FileUtils {
         return file;
       }
     }
-    
-    // Dự phòng: copy file ra file tạm sử dụng stream trong thư mục TemporaryDirectory của app
+
     try {
       final tempDir = await getTemporaryDirectory();
-      // Đảm bảo thư mục cha tồn tại
       if (!tempDir.existsSync()) {
         await tempDir.create(recursive: true);
       }
-      final tempFile = File('${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}_${platformFile.name}');
+      final tempFile = File(
+        '${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}_${platformFile.name}',
+      );
       final IOSink sink = tempFile.openWrite();
-      
+
       if (platformFile.readStream != null) {
         await sink.addStream(platformFile.readStream!);
       } else if (platformFile.bytes != null) {
@@ -32,7 +32,7 @@ class FileUtils {
       } else {
         await sink.addStream(platformFile.xFile.openRead());
       }
-      
+
       await sink.close();
       return tempFile;
     } catch (e) {

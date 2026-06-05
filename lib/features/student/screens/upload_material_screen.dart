@@ -19,7 +19,7 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
   String selectedType = 'summary';
   PlatformFile? _selectedFile;
   bool _isUploading = false;
-  
+
   final DatabaseService _databaseService = DatabaseService();
   final AIService _aiService = AIService();
   final String _uid = FirebaseAuth.instance.currentUser!.uid;
@@ -55,10 +55,11 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
         isTemp = true;
       }
 
-      // 1. Phân tích với Gemini
-      final aiResult = await _aiService.analyzeDocument(file.path, selectedType);
+      final aiResult = await _aiService.analyzeDocument(
+        file.path,
+        selectedType,
+      );
 
-      // 2. Lưu vào Firestore với classId = 'personal'
       final materialId = DateTime.now().millisecondsSinceEpoch.toString();
       final material = MaterialModel(
         materialId: materialId,
@@ -76,17 +77,18 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
       await _databaseService.uploadMaterial(material);
 
       if (mounted) {
-        String resultText = selectedType == 'summary' 
-            ? aiResult['summary'] 
+        String resultText = selectedType == 'summary'
+            ? aiResult['summary']
             : aiResult['questionsText'];
-            
+
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Kết quả phân tích', style: TextStyle(fontWeight: FontWeight.bold)),
-            content: SingleChildScrollView(
-              child: Text(resultText),
+            title: const Text(
+              'Kết quả phân tích',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
+            content: SingleChildScrollView(child: Text(resultText)),
             actions: [
               TextButton(
                 onPressed: () {
@@ -96,7 +98,7 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                   });
                 },
                 child: const Text('Đóng'),
-              )
+              ),
             ],
           ),
         );
@@ -137,25 +139,27 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Lược bỏ phần chọn lớp học vì sinh viên tải lên là tự ôn tập cá nhân
-
-                // Mặc định luôn là Tóm tắt (selectedType = 'summary')
-
                 _buildSection(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Tải lên tài liệu PDF',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tải lên đề cương hoặc tài liệu học tập để nhận tóm tắt tự động bằng AI',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 20),
-                      
+
                       if (_selectedFile != null)
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -166,7 +170,11 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 40),
+                              const Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.redAccent,
+                                size: 40,
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -174,20 +182,29 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                                   children: [
                                     Text(
                                       _selectedFile!.name,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
                                       '${(_selectedFile!.size / 1024 / 1024).toStringAsFixed(2)} MB',
-                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.close, color: Colors.grey),
-                                onPressed: () => setState(() => _selectedFile = null),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _selectedFile = null),
                               ),
                             ],
                           ),
@@ -199,12 +216,18 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 40),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.none),
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                style: BorderStyle.none,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300, width: 1),
+                                border: Border.all(
+                                  color: Colors.grey.shade300,
+                                  width: 1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Padding(
@@ -213,11 +236,18 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.upload_outlined, size: 48, color: Colors.grey.shade500),
+                                      Icon(
+                                        Icons.upload_outlined,
+                                        size: 48,
+                                        color: Colors.grey.shade500,
+                                      ),
                                       const SizedBox(height: 12),
                                       const Text(
                                         'Nhấn để chọn file PDF',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -230,7 +260,7 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -243,9 +273,12 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isUploading 
+                    child: _isUploading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('TẢI LÊN & PHÂN TÍCH', style: TextStyle(fontWeight: FontWeight.bold)),
+                        : const Text(
+                            'TẢI LÊN & PHÂN TÍCH',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -261,7 +294,13 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('AI đang đọc và phân tích...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    Text(
+                      'AI đang đọc và phân tích...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -311,7 +350,13 @@ class _UploadMaterialScreenState extends State<UploadMaterialScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600),
+            Icon(
+              icon,
+              size: 28,
+              color: isSelected
+                  ? const Color(0xFF0F172A)
+                  : Colors.grey.shade600,
+            ),
             const SizedBox(height: 12),
             Text(
               title,
@@ -362,14 +407,22 @@ class DashPainter extends CustomPainter {
 
     while (startX < size.width) {
       canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
-      canvas.drawLine(Offset(startX, size.height), Offset(startX + dashWidth, size.height), paint);
+      canvas.drawLine(
+        Offset(startX, size.height),
+        Offset(startX + dashWidth, size.height),
+        paint,
+      );
       startX += dashWidth + dashSpace;
     }
 
     double startY = 0;
     while (startY < size.height) {
       canvas.drawLine(Offset(0, startY), Offset(0, startY + dashWidth), paint);
-      canvas.drawLine(Offset(size.width, startY), Offset(size.width, startY + dashWidth), paint);
+      canvas.drawLine(
+        Offset(size.width, startY),
+        Offset(size.width, startY + dashWidth),
+        paint,
+      );
       startY += dashWidth + dashSpace;
     }
   }

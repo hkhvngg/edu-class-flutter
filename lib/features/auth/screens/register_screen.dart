@@ -94,7 +94,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
 
-        // Gửi email xác thực (Firebase Link) nếu admin đang bật yêu cầu này.
         if (_requireEmailVerification) {
           await user.sendEmailVerification();
         }
@@ -148,8 +147,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   onPressed: () {
-                    Navigator.pop(context); // Đóng Dialog
-                    Navigator.pop(context); // Về màn login
+                    Navigator.pop(context);
+                    Navigator.pop(context);
                   },
                   child: const Text('Về trang Đăng nhập'),
                 ),
@@ -159,17 +158,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
     } on TimeoutException {
-      _showSnackBar('Quá thời gian kết nối.');
+      _showSnackBar('Quá thời gian kết nối. Vui lòng thử lại.', isError: true);
     } on FirebaseAuthException catch (e) {
-      _showSnackBar('Lỗi xác thực: ${e.message}');
+      _showSnackBar(_friendlyRegisterError(e), isError: true);
     } catch (e) {
-      _showSnackBar('Lỗi hệ thống: $e');
+      _showSnackBar('Không thể đăng ký lúc này. Chi tiết: $e', isError: true);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (mounted) {
       showDialog(
         context: context,
@@ -177,14 +176,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.blue),
+              Icon(
+                isError ? Icons.error_outline : Icons.info_outline,
+                color: isError ? Colors.red : Colors.blue,
+              ),
               SizedBox(width: 8),
               Text(
                 'Thông báo',
                 style: TextStyle(
-                  color: Colors.blue,
+                  color: isError ? Colors.red : Colors.blue,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -194,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: isError ? Colors.red : Colors.blue,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -206,6 +208,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
       );
+    }
+  }
+
+  String _friendlyRegisterError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.';
+      case 'invalid-email':
+        return 'Email không hợp lệ. Vui lòng kiểm tra lại.';
+      case 'weak-password':
+        return 'Mật khẩu quá yếu. Vui lòng nhập mật khẩu ít nhất 6 ký tự.';
+      case 'operation-not-allowed':
+        return 'Hệ thống chưa cho phép đăng ký bằng email/mật khẩu.';
+      case 'network-request-failed':
+        return 'Không thể kết nối mạng. Vui lòng kiểm tra internet rồi thử lại.';
+      default:
+        return e.message ?? 'Không thể đăng ký lúc này. Vui lòng thử lại.';
     }
   }
 
@@ -312,7 +331,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(_nameController, 'Nguyễn Văn A'),
           const SizedBox(height: 20),
           _buildLabel('Email'),
-          _buildTextField(_emailController, 'your.email@edu.vn'),
+          _buildTextField(_emailController, 'Nhập vào Email của bạn'),
           const SizedBox(height: 20),
           _buildLabel('Mật khẩu'),
           _buildTextField(_passwordController, '••••••••', isPassword: true),

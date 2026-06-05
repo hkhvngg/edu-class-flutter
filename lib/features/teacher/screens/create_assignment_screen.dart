@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/assignment_model.dart';
 import '../../../services/database_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../utils/ui_utils.dart';
 
 class CreateAssignmentScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _databaseService = DatabaseService();
+  final _notificationService = NotificationService();
   final _dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
@@ -101,21 +103,52 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
       );
 
       await _databaseService.createAssignment(assignment);
+      String resultMessage = 'Đã tạo bài tập thành công!';
+      final tokens = await _databaseService.getClassMemberTokens(
+        widget.classId,
+      );
+
+      if (tokens.isEmpty) {
+        resultMessage =
+            'Đã tạo bài tập, nhưng chưa có thiết bị học viên nào nhận thông báo đẩy. Học viên cần đăng nhập lại và cho phép thông báo.';
+      } else {
+        try {
+          final sentCount = await _notificationService.sendNotificationToMultiple(
+            title: 'Bài tập mới: $title',
+            body:
+                '${widget.className} - Hạn nộp: ${_dateFormat.format(_dueDate)}',
+            fcmTokens: tokens,
+            data: {
+              'type': 'assignment',
+              'classId': widget.classId,
+              'assignmentId': assignmentId,
+            },
+          );
+          resultMessage =
+              'Đã tạo bài tập và gửi thông báo đẩy tới $sentCount/${tokens.length} thiết bị học viên.';
+        } catch (e) {
+          resultMessage =
+              'Đã tạo bài tập, nhưng gửi thông báo đẩy thất bại: $e';
+        }
+      }
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã tạo bài tập thành công!'),
-          backgroundColor: Color(0xFF22C55E),
-        ),
+      await UIUtils.showMessageDialog(
+        context,
+        'Thông báo',
+        resultMessage,
+        isError: resultMessage.contains('thất bại'),
       );
+      if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         UIUtils.showMessageDialog(
           context,
-          'Thông báo',
-          'Không thể tạo bài tập: $e',
+          'Không thể tạo bài tập',
+          _friendlyAssignmentError(e),
+          isError: true,
         );
       }
     } finally {
@@ -292,5 +325,16 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
       ),
       child: child,
     );
+  }
+
+  String _friendlyAssignmentError(Object error) {
+    final message = error.toString();
+    if (message.contains('permission-denied')) {
+      return 'Bạn không có quyền giao bài tập cho lớp này. Vui lòng kiểm tra tài khoản giảng viên hoặc quyền Firebase.';
+    }
+    if (message.contains('network') || message.contains('SocketException')) {
+      return 'Không thể kết nối mạng. Vui lòng kiểm tra internet rồi thử lại.';
+    }
+    return 'Không thể tạo bài tập lúc này. Chi tiết: $message';
   }
 }

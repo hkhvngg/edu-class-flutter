@@ -48,7 +48,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleChangeAvatar() async {
     setState(() => _isUploadingAvatar = true);
     try {
-      final String? imageUrl = await _storageService.pickAndUploadAvatar(user!.uid);
+      final String? imageUrl = await _storageService.pickAndUploadAvatar(
+        user!.uid,
+      );
       if (imageUrl != null) {
         await _databaseService.updateProfileImage(user!.uid, imageUrl);
         await user!.updatePhotoURL(imageUrl);
@@ -64,7 +66,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        UIUtils.showMessageDialog(context, 'Lỗi', 'Không thể cập nhật ảnh: $e', isError: true);
+        UIUtils.showMessageDialog(
+          context,
+          'Lỗi',
+          'Không thể cập nhật ảnh: $e',
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
@@ -72,7 +79,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditProfileDialog() {
-    final nameController = TextEditingController(text: _userModel?.fullName ?? user?.displayName ?? '');
+    final nameController = TextEditingController(
+      text: _userModel?.fullName ?? user?.displayName ?? '',
+    );
 
     showDialog(
       context: context,
@@ -82,7 +91,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(Icons.edit_rounded, color: Color(0xFF0F172A)),
             SizedBox(width: 10),
-            Text('Chỉnh sửa hồ sơ', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Chỉnh sửa hồ sơ',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -113,7 +125,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final newName = nameController.text.trim();
               if (newName.isEmpty) return;
               try {
-                await _databaseService.updateUserProfile(user!.uid, {'fullName': newName});
+                await _databaseService.updateUserProfile(user!.uid, {
+                  'fullName': newName,
+                });
                 await user!.updateDisplayName(newName);
                 await _loadUserData();
                 if (context.mounted) Navigator.pop(context);
@@ -128,14 +142,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               } catch (e) {
                 if (context.mounted) Navigator.pop(context);
                 if (mounted) {
-                  UIUtils.showMessageDialog(this.context, 'Lỗi', 'Không thể cập nhật: $e', isError: true);
+                  UIUtils.showMessageDialog(
+                    this.context,
+                    'Lỗi',
+                    'Không thể cập nhật: $e',
+                    isError: true,
+                  );
                 }
               }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F172A),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Lưu'),
           ),
@@ -154,22 +175,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Row(
             children: [
               Icon(Icons.lock_outline_rounded, color: Color(0xFF0F172A)),
               SizedBox(width: 10),
-              Text('Đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'Đổi mật khẩu',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildPasswordField(currentPasswordController, 'Mật khẩu hiện tại'),
+              _buildPasswordField(
+                currentPasswordController,
+                'Mật khẩu hiện tại',
+              ),
               const SizedBox(height: 12),
               _buildPasswordField(newPasswordController, 'Mật khẩu mới'),
               const SizedBox(height: 12),
-              _buildPasswordField(confirmPasswordController, 'Xác nhận mật khẩu mới'),
+              _buildPasswordField(
+                confirmPasswordController,
+                'Xác nhận mật khẩu mới',
+              ),
             ],
           ),
           actions: [
@@ -181,12 +213,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: isChanging
                   ? null
                   : () async {
-                      if (newPasswordController.text != confirmPasswordController.text) {
-                        UIUtils.showMessageDialog(this.context, 'Lỗi', 'Mật khẩu xác nhận không khớp!', isError: true);
+                      if (newPasswordController.text !=
+                          confirmPasswordController.text) {
+                        UIUtils.showMessageDialog(
+                          this.context,
+                          'Lỗi',
+                          'Mật khẩu xác nhận không khớp!',
+                          isError: true,
+                        );
                         return;
                       }
                       if (newPasswordController.text.length < 6) {
-                        UIUtils.showMessageDialog(this.context, 'Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự!', isError: true);
+                        UIUtils.showMessageDialog(
+                          this.context,
+                          'Lỗi',
+                          'Mật khẩu mới phải có ít nhất 6 ký tự!',
+                          isError: true,
+                        );
                         return;
                       }
                       setDialogState(() => isChanging = true);
@@ -209,7 +252,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       } on FirebaseAuthException catch (e) {
                         setDialogState(() => isChanging = false);
                         String message = 'Lỗi không xác định';
-                        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+                        if (e.code == 'wrong-password' ||
+                            e.code == 'invalid-credential') {
                           message = 'Mật khẩu hiện tại không đúng!';
                         } else if (e.code == 'weak-password') {
                           message = 'Mật khẩu mới quá yếu!';
@@ -217,22 +261,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           message = e.message ?? message;
                         }
                         if (mounted) {
-                          UIUtils.showMessageDialog(this.context, 'Lỗi', message, isError: true);
+                          UIUtils.showMessageDialog(
+                            this.context,
+                            'Lỗi',
+                            message,
+                            isError: true,
+                          );
                         }
                       } catch (e) {
                         setDialogState(() => isChanging = false);
                         if (mounted) {
-                          UIUtils.showMessageDialog(this.context, 'Lỗi', 'Lỗi: $e', isError: true);
+                          UIUtils.showMessageDialog(
+                            this.context,
+                            'Lỗi',
+                            'Lỗi: $e',
+                            isError: true,
+                          );
                         }
                       }
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0F172A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: isChanging
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text('Đổi mật khẩu'),
             ),
           ],
@@ -267,7 +330,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(Icons.logout_rounded, color: Color(0xFFD31D3F)),
             SizedBox(width: 10),
-            Text('Đăng xuất', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD31D3F))),
+            Text(
+              'Đăng xuất',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFD31D3F),
+              ),
+            ),
           ],
         ),
         content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
@@ -281,7 +350,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD31D3F),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Đăng xuất'),
           ),
@@ -309,18 +380,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
-          title: const Text('Cá nhân', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Cá nhân',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           backgroundColor: const Color(0xFF0F172A),
           automaticallyImplyLeading: false,
         ),
-        body: const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A))),
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF0F172A)),
+        ),
       );
     }
 
-    final String displayName = _userModel?.fullName ?? user?.displayName ?? 'Người dùng mới';
+    final String displayName =
+        _userModel?.fullName ?? user?.displayName ?? 'Người dùng mới';
     final String email = _userModel?.email ?? user?.email ?? 'Chưa có email';
     final String? avatarUrl = _userModel?.profileImageUrl;
-    final String initial = (displayName.isNotEmpty ? displayName : email).substring(0, 1).toUpperCase();
+    final String initial = (displayName.isNotEmpty ? displayName : email)
+        .substring(0, 1)
+        .toUpperCase();
     final String memberSince = _userModel != null
         ? '${_userModel!.createdAt.day}/${_userModel!.createdAt.month}/${_userModel!.createdAt.year}'
         : '';
@@ -328,7 +407,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Cá nhân', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Cá nhân',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF0F172A),
         automaticallyImplyLeading: false,
       ),
@@ -340,7 +422,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // --- Avatar + Info Card ---
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -356,7 +437,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Avatar
                     GestureDetector(
                       onTap: _isUploadingAvatar ? null : _handleChangeAvatar,
                       child: Stack(
@@ -368,7 +448,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               shape: BoxShape.circle,
                               gradient: avatarUrl == null
                                   ? const LinearGradient(
-                                      colors: [Color(0xFF0F172A), Color(0xFF334155)],
+                                      colors: [
+                                        Color(0xFF0F172A),
+                                        Color(0xFF334155),
+                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     )
@@ -381,7 +464,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   : null,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF0F172A).withValues(alpha: 0.3),
+                                  color: const Color(
+                                    0xFF0F172A,
+                                  ).withValues(alpha: 0.3),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -400,7 +485,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   )
                                 : null,
                           ),
-                          // Camera icon overlay
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -410,23 +494,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFF0F172A),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
                               child: _isUploadingAvatar
                                   ? const Padding(
                                       padding: EdgeInsets.all(6),
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
                                     )
-                                  : const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                                  : const Icon(
+                                      Icons.camera_alt_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Role badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF22C55E).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -441,22 +537,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Name
                     Text(
                       displayName,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    // Email
                     Text(
                       email,
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
                     ),
                     if (memberSince.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
                         'Tham gia từ $memberSince',
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ],
@@ -464,7 +568,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- Menu Items ---
               _buildMenuItem(
                 icon: Icons.edit_outlined,
                 title: 'Chỉnh sửa hồ sơ',
@@ -488,18 +591,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 28),
 
-              // --- Logout Button ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _handleLogout(context),
                   icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Đăng xuất', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Đăng xuất',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD31D3F),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -546,9 +653,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),

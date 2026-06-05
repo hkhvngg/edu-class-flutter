@@ -12,7 +12,7 @@ import '../../../models/attendance_model.dart';
 import '../../../models/grade_model.dart';
 
 class ClassDetailScreen extends StatelessWidget {
-  final String classId; // Thêm classId để fetch dữ liệu
+  final String classId;
   final String className;
   final String subName;
   final String teacher;

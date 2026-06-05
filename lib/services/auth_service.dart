@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  static Future<void>? _googleInitFuture;
 
-  // Stream theo dõi trạng thái đăng nhập
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Lấy User hiện tại
   User? get currentUser => _auth.currentUser;
 
   Future<UserCredential> signIn(
@@ -15,7 +15,6 @@ class AuthService {
     bool requireEmailVerification = true,
   }) async {
     try {
-      // Đảm bảo trim email để tránh lỗi khoảng trắng thừa
       UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
@@ -49,7 +48,6 @@ class AuthService {
     }
   }
 
-  // Đăng ký
   Future<UserCredential> signUp(String email, String password) async {
     try {
       return await _auth.createUserWithEmailAndPassword(
@@ -62,8 +60,53 @@ class AuthService {
     }
   }
 
-  // Đăng xuất
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      _googleInitFuture ??= GoogleSignIn.instance.initialize();
+      await _googleInitFuture;
+
+      if (!GoogleSignIn.instance.supportsAuthenticate()) {
+        throw FirebaseAuthException(
+          code: 'google-sign-in-not-supported',
+          message: 'Thiết bị hiện tại không hỗ trợ đăng nhập bằng Google.',
+        );
+      }
+
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw FirebaseAuthException(
+          code: 'missing-google-id-token',
+          message:
+              'Không nhận được Google ID token. Vui lòng kiểm tra cấu hình Firebase Google Sign-In.',
+        );
+      }
+
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+
+      return _auth.signInWithCredential(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return null;
+      }
+      throw FirebaseAuthException(
+        code: e.code.name,
+        message: e.description ?? 'Không thể đăng nhập bằng Google.',
+      );
+    } on FirebaseAuthException catch (e) {
+      print("AUTH_ERROR_GOOGLE_SIGNIN: ${e.code}");
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
+    try {
+      _googleInitFuture ??= GoogleSignIn.instance.initialize();
+      await _googleInitFuture;
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
     await _auth.signOut();
   }
 }

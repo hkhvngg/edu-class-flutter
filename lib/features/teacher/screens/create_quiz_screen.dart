@@ -21,7 +21,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   String? _selectedClassId;
   bool _isGenerating = false;
   List<QuestionModel>? _generatedQuestions;
-  
+
   final DatabaseService _databaseService = DatabaseService();
   final AIService _aiService = AIService();
   final String _uid = FirebaseAuth.instance.currentUser!.uid;
@@ -36,7 +36,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     if (result != null) {
       setState(() {
         _selectedFile = result.files.first;
-        _generatedQuestions = null; // reset preview
+        _generatedQuestions = null;
       });
     }
   }
@@ -47,7 +47,11 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       return;
     }
     if (_selectedFile == null) {
-      UIUtils.showMessageDialog(context, 'Thông báo', 'Vui lòng chọn file PDF hợp lệ');
+      UIUtils.showMessageDialog(
+        context,
+        'Thông báo',
+        'Vui lòng chọn file PDF hợp lệ',
+      );
       return;
     }
 
@@ -66,7 +70,9 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       }
 
       final questionsList = await _aiService.generateQuizFromPdf(file.path);
-      List<QuestionModel> parsedQuestions = questionsList.map((q) => QuestionModel.fromMap(q)).toList();
+      List<QuestionModel> parsedQuestions = questionsList
+          .map((q) => QuestionModel.fromMap(q))
+          .toList();
 
       if (mounted) {
         setState(() {
@@ -93,9 +99,9 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
 
   Future<void> _handleSaveQuiz() async {
     if (_generatedQuestions == null || _selectedClassId == null) return;
-    
+
     setState(() => _isGenerating = true);
-    
+
     try {
       final quizId = DateTime.now().millisecondsSinceEpoch.toString();
       final quiz = QuizModel(
@@ -114,18 +120,20 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Thành công'),
-            content: Text('Đã tạo thành công bài tập với ${_generatedQuestions!.length} câu hỏi và giao cho lớp!'),
+            content: Text(
+              'Đã tạo thành công bài tập với ${_generatedQuestions!.length} câu hỏi và giao cho lớp!',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); // close dialog
+                  Navigator.pop(context);
                   setState(() {
                     _selectedFile = null;
                     _generatedQuestions = null;
                   });
                 },
                 child: const Text('Đóng'),
-              )
+              ),
             ],
           ),
         );
@@ -146,7 +154,10 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Tạo bài tập AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Tạo bài tập AI',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF0F172A),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -161,23 +172,45 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Chọn lớp học để giao bài', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Chọn lớp học để giao bài',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       StreamBuilder<List<ClassModel>>(
                         stream: _databaseService.getTeacherClasses(_uid),
                         builder: (context, snapshot) {
-                          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                          if (!snapshot.hasData)
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
                           final classes = snapshot.data!;
-                          if (classes.isEmpty) return const Text('Bạn chưa tạo lớp học nào.');
-                          
+                          if (classes.isEmpty)
+                            return const Text('Bạn chưa tạo lớp học nào.');
+
                           return DropdownButtonFormField<String>(
                             value: _selectedClassId,
                             decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             hint: const Text('Chọn lớp học'),
-                            items: classes.map((c) => DropdownMenuItem(value: c.classId, child: Text(c.className))).toList(),
+                            items: classes
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c.classId,
+                                    child: Text(c.className),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (val) {
                               setState(() {
                                 _selectedClassId = val;
@@ -195,33 +228,69 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Tải lên tài liệu PDF', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Tải lên tài liệu PDF',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text('Tải lên tài liệu để AI tự động trích xuất nội dung và tạo câu hỏi trắc nghiệm', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      Text(
+                        'Tải lên tài liệu để AI tự động trích xuất nội dung và tạo câu hỏi trắc nghiệm',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       if (_selectedFile != null)
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blue.shade200)),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
                           child: Row(
                             children: [
-                              const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 40),
+                              const Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.redAccent,
+                                size: 40,
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(_selectedFile!.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    Text('${(_selectedFile!.size / 1024 / 1024).toStringAsFixed(2)} MB', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                    Text(
+                                      _selectedFile!.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${(_selectedFile!.size / 1024 / 1024).toStringAsFixed(2)} MB',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.close, color: Colors.grey), 
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.grey,
+                                ),
                                 onPressed: () => setState(() {
                                   _selectedFile = null;
                                   _generatedQuestions = null;
-                                })
+                                }),
                               ),
                             ],
                           ),
@@ -232,17 +301,39 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 40),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, style: BorderStyle.none), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                style: BorderStyle.none,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: Container(
-                              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 1), borderRadius: BorderRadius.circular(12)),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.grey.shade300,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.all(24.0),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.upload_outlined, size: 48, color: Colors.grey.shade500),
+                                    Icon(
+                                      Icons.upload_outlined,
+                                      size: 48,
+                                      color: Colors.grey.shade500,
+                                    ),
                                     const SizedBox(height: 12),
-                                    const Text('Nhấn để chọn file PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                    const Text(
+                                      'Nhấn để chọn file PDF',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -252,7 +343,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                     ],
                   ),
                 ),
-                
+
                 if (_generatedQuestions != null) ...[
                   const SizedBox(height: 16),
                   _buildSection(
@@ -262,8 +353,20 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Bản xem trước', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
-                            Text('${_generatedQuestions!.length} câu hỏi', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const Text(
+                              'Bản xem trước',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Text(
+                              '${_generatedQuestions!.length} câu hỏi',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                         const Divider(),
@@ -278,11 +381,27 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Câu ${index + 1}: ${q.questionText}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    'Câu ${index + 1}: ${q.questionText}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('A. ${q.options[0]}\nB. ${q.options[1]}\nC. ${q.options[2]}\nD. ${q.options[3]}', style: TextStyle(color: Colors.grey.shade700)),
+                                  Text(
+                                    'A. ${q.options[0]}\nB. ${q.options[1]}\nC. ${q.options[2]}\nD. ${q.options[3]}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('Đáp án đúng: ${String.fromCharCode(65 + q.correctAnswerIndex)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                                  Text(
+                                    'Đáp án đúng: ${String.fromCharCode(65 + q.correctAnswerIndex)}',
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -303,9 +422,14 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text('TẠO TRẮC NGHIỆM AI', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'TẠO TRẮC NGHIỆM AI',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   )
                 else
@@ -317,9 +441,14 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text('XÁC NHẬN GIAO BÀI TẬP', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'XÁC NHẬN GIAO BÀI TẬP',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
               ],
@@ -334,7 +463,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('Đang xử lý...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Đang xử lý...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -348,7 +483,17 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 2))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: child,
     );
   }
